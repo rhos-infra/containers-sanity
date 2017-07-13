@@ -1,4 +1,9 @@
-- name: container_sanity.py script
-  command: python ./container_sanity.py
-  args:
-    chdir: "{{ role_path }}/files"
+-name: Copy container_sanity.py script to overcloud
+  copy:
+      src: "{{ role_path }}/files/container_sanity.py"
+      dest: /tmp/container_sanity.py
+      mode: 0755
+
+- name: Execute container_sanity.py script
+  shell: python /tmp/container_sanity.py
+
