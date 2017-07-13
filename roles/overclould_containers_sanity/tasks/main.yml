@@ -1,4 +1,4 @@
--name: Copy container_sanity.py script to overcloud
+- name: Copy container_sanity.py script to overcloud
   copy:
       src: "{{ role_path }}/files/container_sanity.py"
       dest: /tmp/container_sanity.py
