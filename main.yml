@@ -16,5 +16,4 @@
   become: yes
   roles:
     - { role: overclould_containers_sanity }
-    - { role: overclould_patching_containers }
 
