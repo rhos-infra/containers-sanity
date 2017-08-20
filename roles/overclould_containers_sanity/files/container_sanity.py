@@ -14,12 +14,24 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import subprocess
+from subprocess import CalledProcessError, STDOUT, check_output
+
+
+def getstatusoutput(cmd):
+    try:
+        data = check_output(cmd, shell=True, universal_newlines=True, stderr=STDOUT)
+        status = 0
+    except CalledProcessError as ex:
+        data = ex.output
+        status = ex.returncode
+    if data[-1:] == '\n':
+        data = data[:-1]
+    return status, data
 
 
 def run_cmd(cmd, node='127.0.0.1'):
     output_dict = {}
-    status, output = subprocess.getstatusoutput(cmd)
+    status, output = getstatusoutput(cmd)
     output_dict[node] = output
     return output_dict
 
@@ -57,6 +69,22 @@ def check_docker_container_volume(node):
     docker_container_volumes = run_cmd('sudo ls -l /var/lib/docker/containers')
     assert "No such file or directory" not in docker_container_volumes[node]
 
+# gets container param - the name of docker container
+# returns dictionary with command that is about to be run in container and the
+#         string of the expected process to match for
+def container2dict(container):
+    if "cron" in container:
+        return {'cmd': "ps -aux", 'process': "crond"}
+   
+    switcher = {
+        "horizon": {'cmd': "ps -aux", 'process': "httpd"},
+        "swift_xinetd_rsync": {'cmd': "ps -aux", 'process': "xinet"},
+        "swift_rsync": {'cmd': "ps -aux", 'process': "rsync"},
+        "nova_migration_target": {'cmd': "ps -aux", 'process': "sshd"},
+        "clustercheck": {'cmd': "clustercheck", 'process': "clus"},
+    }
+    
+    return switcher.get(container, {'cmd': "ps -aux", 'process': container[:4]})
 
 def check_openstack_services_in_docker_containers(node):
     print ("\t Check that openstack services running in docker containers \n")
@@ -67,17 +95,22 @@ def check_openstack_services_in_docker_containers(node):
         | sort')
 
     docker_containers_process[node] = \
-        {key: None for key in docker_containers_names[node].split('\n')}
+        {key: container2dict(key) for key in docker_containers_names[node].split('\n')}
 
-    for name in docker_containers_process[node].keys():
+
+    for container in docker_containers_process[node].keys():
         cmd = \
-            'sudo docker exec %s ps -aux \
+            'sudo docker exec %s %s \
             | grep %s \
-            | grep -v ps' % (name, name[:4])
-        docker_containers_process[node][name] = run_cmd(cmd)[node]
-        print (node + "\n" + name + "\n" +
-               docker_containers_process[node][name] + "\n")
-        assert len(docker_containers_process[node][name]) != 0
+            | grep -v %s' % (container, \
+                             docker_containers_process[node][container].get('cmd'), \
+                             docker_containers_process[node][container].get('process'), \
+                             docker_containers_process[node][container].get('cmd'))
+
+        docker_containers_process[node][container] = run_cmd(cmd)[node]
+        print (node + "\n" + container + "\n" +
+               docker_containers_process[node][container] + "\n")
+        assert len(docker_containers_process[node][container]) != 0
 
 
 def main():
