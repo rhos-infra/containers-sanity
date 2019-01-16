@@ -82,6 +82,9 @@ def container2dict(container):
     if "cron" in container:
         return {'cmd': "ps -aux", 'process': "crond"}
 
+    if "openstack-cinder-volume-docker" in container:
+        return {'cmd': "ps -aux", 'process': "cinder-volume"}
+
     switcher = {
         "horizon": {'cmd': "ps -aux", 'process': "httpd"},
         "swift_xinetd_rsync": {'cmd': "ps -aux", 'process': "xinet"},
